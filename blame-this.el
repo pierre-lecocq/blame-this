@@ -1,6 +1,6 @@
 ;;; blame-this.el --- blame this! -*- lexical-binding: t; -*-
 
-;; Time-stamp: <2019-01-03 22:06:19>
+;; Time-stamp: <2019-01-04 10:39:35>
 ;; Copyright (C) 2019 Pierre Lecocq
 
 ;; Author: Pierre Lecocq <pierre.lecocq@gmail.com>
@@ -31,17 +31,20 @@
   :prefix "blame-this-"
   :group 'lisp)
 
-(defvar blame-this-line-display-mode
-  "overlay"
-  "Display mode for blaming line. Can be: overlay, minibuffer or compile.")
+(defcustom blame-this-line-display-mode "overlay"
+  "Display mode for blaming line. Can be: overlay, minibuffer or compile."
+  :type '(string)
+  :group 'blame-this)
 
-(defvar blame-this-file-display-mode
-  "compile"
-  "Display mode for blaming file. Can be: overlay, minibuffer or compile.")
+(defcustom blame-this-file-display-mode "compile"
+  "Display mode for blaming file. Can be: overlay, minibuffer or compile."
+  :type '(string)
+  :group 'blame-this)
 
-(defvar blame-this-overlay-timeout
-  10
-  "Overlay timeout.")
+(defcustom blame-this-overlay-timeout 10
+  "Overlay timeout."
+  :type '(integer)
+  :group 'blame-this)
 
 (defface blame-this-overlay-face
   '((((class color) (background light))
@@ -80,18 +83,14 @@
     (delete-overlay ov))
   (forward-line -1))
 
-(defun blame-this--execute (target)
-  "Execute blame according to TARGET."
-  (let* ((display-val (symbol-value (intern (format "blame-this-%s-display-mode" target))))
-         (execute-fn (intern (format "blame-this--execute-in-%s" display-val)))
-         (command-fn (intern (format "blame-this--command-for-%s" target))))
-    (funcall execute-fn (funcall command-fn))))
-
 (defun blame--this (target)
   "Blame this TARGET."
-  (let ((default-directory  (locate-dominating-file default-directory ".git")))
+  (let ((default-directory (locate-dominating-file default-directory ".git")))
     (when default-directory
-      (blame-this--execute target))))
+      (let* ((display-val (symbol-value (intern (format "blame-this-%s-display-mode" target))))
+             (execute-fn (intern (format "blame-this--execute-in-%s" display-val)))
+             (command-fn (intern (format "blame-this--command-for-%s" target))))
+        (funcall execute-fn (funcall command-fn))))))
 
 (defun blame-this-line ()
   "Display blame info for the current line."
