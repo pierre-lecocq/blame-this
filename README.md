@@ -52,6 +52,7 @@ Variable is:
 - [ ] Add package to MELPA and `use-package` install instruction
 - [ ] Place overlay above line if it appears at the bottom of the buffer
 - [ ] Automatic mode, after a delay without moving the cursor
+- [ ] Parse output and display a better (simpler) version. Maybe make the ouput customizable?
 
 ## Changelog
 
