@@ -1,6 +1,6 @@
 ;;; blame-this.el --- blame this! -*- lexical-binding: t; -*-
 
-;; Time-stamp: <2019-01-04 10:39:35>
+;; Time-stamp: <2019-01-17 11:38:12>
 ;; Copyright (C) 2019 Pierre Lecocq
 
 ;; Author: Pierre Lecocq <pierre.lecocq@gmail.com>
@@ -22,22 +22,27 @@
 
 ;;; Commentary:
 
-;; Display a git blame summary of the current line or file.
+;; Display a git blame summary of the current line.
 
 ;;; Code:
 
 (defgroup blame-this nil
-  "Display a git blame summary of the current line or file."
+  "Display a git blame summary of the current line."
   :prefix "blame-this-"
   :group 'lisp)
 
-(defcustom blame-this-line-display-mode "overlay"
-  "Display mode for blaming line. Can be: overlay, minibuffer or compile."
-  :type '(string)
+(defcustom blame-this-on-idle nil
+  "Blame the current line automatically on idle."
+  :type '(boolean)
   :group 'blame-this)
 
-(defcustom blame-this-file-display-mode "compile"
-  "Display mode for blaming file. Can be: overlay, minibuffer or compile."
+(defcustom blame-this-idle-time 2
+  "Idle time before triggering blame-this-line."
+  :type '(integer)
+  :group 'blame-this)
+
+(defcustom blame-this-display-mode "overlay"
+  "Display mode. Can be: overlay or minibuffer."
   :type '(string)
   :group 'blame-this)
 
@@ -47,68 +52,76 @@
   :group 'blame-this)
 
 (defface blame-this-overlay-face
-  '((((class color) (background light))
-     :background "grey90" :foreground "black")
-    (((class color) (background dark))
-     :background "grey10" :foreground "white"))
+  '((t :foreground "black"
+       :background "LemonChiffon"))
   "Overlay face."
   :group 'blame-this)
 
-(defun blame-this--command-for-line ()
-  "Build command to run for line."
-  (let ((line-num (1+ (count-lines 1 (point)))))
-    (format "git blame -L%d,%d --incremental %s"
-            line-num line-num buffer-file-name)))
+(defvar blame-this--timer nil)
 
-(defun blame-this--command-for-file ()
-  "Build command to run for file."
-  (format "git blame --incremental %s" buffer-file-name))
+(defun blame-this--format-output (output)
+  "Format OUTPUT for the condensed setting."
+  (with-temp-buffer
+    (insert output)
+    (save-excursion
+      (goto-char (point-min))
+      (let ((chunks '()))
+        (while (not (eobp))
+          (let ((line-num (1+ (count-lines 1 (point))))
+                (line (buffer-substring-no-properties
+                       (line-beginning-position)
+                       (line-end-position))))
+            (cond ((= line-num 1)
+                   (push (nth 0 (split-string line)) chunks))
+                  ((or (= line-num 2)
+                       (= line-num 3))
+                   (push (mapconcat 'identity (cdr (split-string line)) " ") chunks))
+                  ((= line-num 4)
+                   (push (current-time-string (string-to-number (mapconcat 'identity (cdr (split-string line)) " "))) chunks)))
+            (forward-line 1)))
+        (mapconcat 'identity (reverse chunks) " - ")))))
 
-(defun blame-this--execute-in-minibuffer (command)
-  "Execute COMMAND and display its output in minibuffer."
-  (message (shell-command-to-string command)))
-
-(defun blame-this--execute-in-compile (command)
-  "Execute COMMAND and display its output in compile buffer."
-  (compile command))
-
-(defun blame-this--execute-in-overlay (command)
-  "Execute COMMAND and display its output in overlay."
-  (forward-line)
-  (let ((ov (make-overlay (line-end-position) (line-end-position)))
-        (str (shell-command-to-string command)))
+(defun blame-this--display-in-overlay (output)
+  "Display OUTPUT in an overlay."
+  (let ((ov (make-overlay (line-end-position) (line-end-position))))
     (overlay-put ov 'after-string
-                 (propertize str 'face 'blame-this-overlay-face))
+                 (propertize (concat " " output) 'face 'blame-this-overlay-face))
     (sit-for blame-this-overlay-timeout)
-    (delete-overlay ov))
-  (forward-line -1))
+    (delete-overlay ov)))
 
-(defun blame--this (target)
-  "Blame this TARGET."
-  (let ((default-directory (locate-dominating-file default-directory ".git")))
-    (when default-directory
-      (let* ((display-val (symbol-value (intern (format "blame-this-%s-display-mode" target))))
-             (execute-fn (intern (format "blame-this--execute-in-%s" display-val)))
-             (command-fn (intern (format "blame-this--command-for-%s" target))))
-        (funcall execute-fn (funcall command-fn))))))
+(defun blame-this--display-in-minibuffer (output)
+  "Display OUTPUT in the minibuffer."
+  (message output))
+
+(defun blame-this--execute-command ()
+  "Execute command ."
+  (shell-command-to-string
+   (format "git blame -L%d,+1 --incremental %s"
+           (1+ (count-lines 1 (point))) buffer-file-name)))
 
 (defun blame-this-line ()
   "Display blame info for the current line."
   (interactive)
-  (blame--this "line"))
-
-(defun blame-this-file ()
-  "Display blame info for the current file."
-  (interactive)
-  (blame--this "file"))
+  (let ((default-directory (locate-dominating-file default-directory ".git")))
+    (when default-directory
+      (let ((output (blame-this--format-output (blame-this--execute-command))))
+        (cond ((string= blame-this-display-mode "overlay")
+               (blame-this--display-in-overlay output))
+              ((string= blame-this-display-mode "minibuffer")
+               (blame-this--display-in-minibuffer output))
+              (t (error "Unsupported display mode %s" blame-this-display-mode)))))))
 
 ;;;###autoload
 (define-minor-mode blame-this-mode
-  "Display a git blame summary of the current line or file."
+  "Display a git blame summary of the current line."
   :global t
   (when blame-this-mode
     (global-set-key (kbd "C-c b l") #'blame-this-line)
-    (global-set-key (kbd "C-c b f") #'blame-this-file)))
+    (when blame-this-on-idle
+      (unless blame-this--timer
+        (setq blame-this--timer
+              (run-with-idle-timer
+               blame-this-idle-time t #'blame-this-line))))))
 
 (provide 'blame-this)
 

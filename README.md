@@ -1,6 +1,6 @@
 # Blame this!
 
-Display a git blame summary of the current line or file
+Display a git blame summary of the current line.
 
 ## Install
 
@@ -9,58 +9,33 @@ Display a git blame summary of the current line or file
 
 ## Keybindings
 
-- Use `C-c b l` to blame the current line
-- Use `C-c b f` to blame the current file
+Use `C-c b l` to blame the current line
 
 ## Customization
 
 All customizations can be done via the `M-x customize` command. Then search for `blame-this`.
+Otherwise, you can set the following variables in your Emacs configuration file.
 
-### Display modes
-
-Variables are:
-
-- `blame-this-line-display-mode`, default is `overlay`
-- `blame-this-file-display-mode`, default is `compile`
-
-Possible values are:
-
-- `overlay` to display the information in an in-buffer popup
-- `minibuffer` to display the information in the minibuffer
-- `compile` to display the information in a dedicated buffer
-
-### Timeout
-
-In `overlay` mode, a timeout can be specified in seconds so the overlay disapear automatically
-
-Variable is:
-
-- `blame-this-overlay-timeout`, default is `10` (in seconds)
-
-### Font face
-
-In `overlay` mode, the font face can be tweaked
-
-Variable is:
-
-- `blame-this-overlay-face`, default is
-  - If your main theme is dark, background is light grey (`grey10`) and foreground is black
-  - If your main theme is light, background is dark grey (`grey90`) and foreground is white
-
-## TODO
-
-- [ ] Add package to MELPA and `use-package` install instruction
-- [ ] Place overlay above line if it appears at the bottom of the buffer
-- [ ] Automatic mode, after a delay without moving the cursor
-- [ ] Parse output and display a better (simpler) version. Maybe make the ouput customizable?
+| Variable                       | Comment                                                             | Possible values                             | Default                                                                       |
+|--------------------------------|---------------------------------------------------------------------|---------------------------------------------|-------------------------------------------------------------------------------|
+| `blame-this-line-display-mode` | Where to display the result                                         | `overlay` (in-buffer popup) or `minibuffer` | `overlay`                                                                     |
+| `blame-this-overlay-timeout`   | Timeout to make the overlay disapear (only in overlay display mode) | Any positive integer                        | `10`                                                                          |
+| `blame-this-on-idle`           | Automatically blame the current line on idle                        | `non-nil` to activate                       | `nil`                                                                         |
+| `blame-this-idle-time`         | Idle time in seconds to blame the current line automatically        | Any positive integer                        | `2`                                                                           |
+| `blame-this-overlay-face`      | Font face (only in overlay display mode)                            | Any font face                               |  An ugly black on yellow, forcing you to improve this according to your theme |
 
 ## Changelog
+
+### 0.3
+
+- Add idle support
+- Simplify all the flow
+
+### 0.2
+
+- Add `blame-this-display-type` support
+- Remove useless file support
 
 ### 0.1
 
 - Initial version
-  - minor mode
-  - blame line
-  - blame file
-  - customizable face
-  - possible output: minibuffer, compile buffer, overlay
