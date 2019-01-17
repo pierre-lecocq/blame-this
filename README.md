@@ -2,6 +2,8 @@
 
 Display a git blame summary of the current line.
 
+![Screenshot](./blame-this.png)
+
 ## Install
 
 - Add `blame-this.el` in your load path
